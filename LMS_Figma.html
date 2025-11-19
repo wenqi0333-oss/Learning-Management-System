@@ -1,0 +1,1800 @@
+```index.tsx
+import './index.css'
+import React from "react";
+import { render } from "react-dom";
+import { App } from "./App";
+
+render(<App />, document.getElementById("root"));
+
+```
+```App.tsx
+import React, { useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import Landing from './pages/Landing'
+import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
+import CourseManagement from './pages/CourseManagement'
+import Assessment from './pages/Assessment'
+import UserManagement from './pages/UserManagement'
+import Layout from './components/Layout'
+function ProtectedRoute({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode
+  allowedRoles?: string[]
+}) {
+  const { user } = useAuth()
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+  return <>{children}</>
+}
+function AppContent() {
+  const { user } = useAuth()
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={user ? <Navigate to="/dashboard" replace /> : <Landing />}
+      />
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/dashboard" replace /> : <Login />}
+      />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Dashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/courses"
+        element={
+          <ProtectedRoute allowedRoles={['Administrator', 'Trainer']}>
+            <Layout>
+              <CourseManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assessment"
+        element={
+          <ProtectedRoute allowedRoles={['Student']}>
+            <Layout>
+              <Assessment />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <Layout>
+              <UserManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  )
+}
+export function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </BrowserRouter>
+  )
+}
+
+```
+```AppRouter.tsx
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { App } from "./App";
+
+export function AppRouter() {
+  return (
+    <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
+        </Routes>
+    </BrowserRouter>
+  );
+}
+```
+```tailwind.config.js
+export default {}
+```
+```index.css
+/* PLEASE NOTE: THESE TAILWIND IMPORTS SHOULD NEVER BE DELETED */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+/* DO NOT DELETE THESE TAILWIND IMPORTS, OTHERWISE THE STYLING WILL NOT RENDER AT ALL */
+```
+```context/AuthContext.tsx
+import React, { useState, createContext, useContext } from 'react'
+interface User {
+  email: string
+  role: 'Administrator' | 'Trainer' | 'Student'
+  name: string
+}
+interface AuthContextType {
+  user: User | null
+  login: (email: string, password: string, role: string) => void
+  logout: () => void
+  signup: (email: string, password: string, role: string, name: string) => void
+}
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const login = (email: string, password: string, role: string) => {
+    // Simulate login
+    setUser({
+      email,
+      role: role as User['role'],
+      name: email.split('@')[0],
+    })
+  }
+  const signup = (
+    email: string,
+    password: string,
+    role: string,
+    name: string,
+  ) => {
+    // Simulate signup
+    setUser({
+      email,
+      role: role as User['role'],
+      name,
+    })
+  }
+  const logout = () => {
+    setUser(null)
+  }
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        logout,
+        signup,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  )
+}
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider')
+  }
+  return context
+}
+
+```
+```pages/Login.tsx
+import React, { useState } from 'react'
+import { LogInIcon, UserPlusIcon } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+export default function Login() {
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [role, setRole] = useState('Student')
+  const { login, signup } = useAuth()
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (isSignUp) {
+      signup(email, password, role, name)
+    } else {
+      login(email, password, role)
+    }
+  }
+  return (
+    <div className="min-h-screen w-full bg-gray-100 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">
+            Learning Hub
+          </h1>
+          <p className="text-gray-600">
+            {isSignUp ? 'Create your account' : 'Welcome back'}
+          </p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="Student">Student</option>
+              <option value="Trainer">Trainer</option>
+              <option value="Administrator">Administrator</option>
+            </select>
+          </div>
+          {!isSignUp && (
+            <div className="text-right">
+              <a href="#" className="text-sm text-blue-600 hover:text-blue-700">
+                Forgot Password?
+              </a>
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          >
+            {isSignUp ? (
+              <>
+                <UserPlusIcon size={20} />
+                Sign Up
+              </>
+            ) : (
+              <>
+                <LogInIcon size={20} />
+                Log In
+              </>
+            )}
+          </button>
+        </form>
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-gray-600 hover:text-blue-600"
+          >
+            {isSignUp
+              ? 'Already have an account? Log In'
+              : "Don't have an account? Sign Up"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```components/Layout.tsx
+import React from 'react'
+import Sidebar from './Sidebar'
+import Navbar from './Navbar'
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen w-full bg-gray-100 flex">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Navbar />
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
+      </div>
+    </div>
+  )
+}
+
+```
+```components/Sidebar.tsx
+import React from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import {
+  LayoutDashboardIcon,
+  BookOpenIcon,
+  FileTextIcon,
+  UsersIcon,
+  LogOutIcon,
+} from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+export default function Sidebar() {
+  const location = useLocation()
+  const { user, logout } = useAuth()
+  const isActive = (path: string) => location.pathname === path
+  const navItems = [
+    {
+      path: '/dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboardIcon,
+      roles: ['Administrator', 'Trainer', 'Student'],
+    },
+    {
+      path: '/courses',
+      label: 'Course Management',
+      icon: BookOpenIcon,
+      roles: ['Administrator', 'Trainer'],
+    },
+    {
+      path: '/assessment',
+      label: 'Assessment',
+      icon: FileTextIcon,
+      roles: ['Student'],
+    },
+    {
+      path: '/users',
+      label: 'User Management',
+      icon: UsersIcon,
+      roles: ['Administrator'],
+    },
+  ]
+  const filteredNavItems = navItems.filter(
+    (item) => user && item.roles.includes(user.role),
+  )
+  return (
+    <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-6 border-b border-gray-200">
+        <h1 className="text-2xl font-bold text-blue-600">Learning Hub</h1>
+      </div>
+      <nav className="flex-1 p-4 space-y-2">
+        {filteredNavItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive(item.path) ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'}`}
+            >
+              <Icon size={20} />
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
+      <div className="p-4 border-t border-gray-200">
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 w-full transition-colors"
+        >
+          <LogOutIcon size={20} />
+          <span className="font-medium">Logout</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+```
+```components/Navbar.tsx
+import React from 'react'
+import { BellIcon, UserIcon } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
+export default function Navbar() {
+  const { user } = useAuth()
+  return (
+    <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-800">
+          Welcome back, {user?.name}!
+        </h2>
+        <p className="text-sm text-gray-600">{user?.role}</p>
+      </div>
+      <div className="flex items-center gap-4">
+        <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors relative">
+          <BellIcon size={20} className="text-gray-600" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg">
+          <UserIcon size={20} className="text-gray-600" />
+          <span className="text-sm font-medium text-gray-700">
+            {user?.email}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```pages/Dashboard.tsx
+import React from 'react'
+import { useAuth } from '../context/AuthContext'
+import {
+  BookOpenIcon,
+  UsersIcon,
+  TrendingUpIcon,
+  ClockIcon,
+} from 'lucide-react'
+export default function Dashboard() {
+  const { user } = useAuth()
+  if (user?.role === 'Administrator') {
+    return <AdminDashboard />
+  } else if (user?.role === 'Trainer') {
+    return <TrainerDashboard />
+  } else {
+    return <StudentDashboard />
+  }
+}
+function AdminDashboard() {
+  const stats = [
+    {
+      label: 'Total Users',
+      value: '1,234',
+      icon: UsersIcon,
+      color: 'bg-blue-500',
+    },
+    {
+      label: 'Active Courses',
+      value: '45',
+      icon: BookOpenIcon,
+      color: 'bg-green-500',
+    },
+    {
+      label: 'Total Trainers',
+      value: '28',
+      icon: UsersIcon,
+      color: 'bg-purple-500',
+    },
+    {
+      label: 'Total Students',
+      value: '1,150',
+      icon: TrendingUpIcon,
+      color: 'bg-orange-500',
+    },
+  ]
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        Administrator Dashboard
+      </h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon
+          return (
+            <div key={index} className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <Icon size={24} className="text-white" />
+                </div>
+              </div>
+              <h3 className="text-gray-600 text-sm mb-1">{stat.label}</h3>
+              <p className="text-3xl font-bold text-gray-800">{stat.value}</p>
+            </div>
+          )
+        })}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Recent User Activity
+          </h2>
+          <div className="space-y-3">
+            {[
+              'John Doe logged in',
+              'Jane Smith completed Course A',
+              'Mike Johnson uploaded new material',
+            ].map((activity, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <ClockIcon size={16} className="text-gray-400" />
+                <span className="text-sm text-gray-700">{activity}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            System Overview
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600">Storage Used</span>
+                <span className="font-medium text-gray-800">65%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full"
+                  style={{
+                    width: '65%',
+                  }}
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-gray-600">Active Sessions</span>
+                <span className="font-medium text-gray-800">342</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-green-600 h-2 rounded-full"
+                  style={{
+                    width: '82%',
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+function TrainerDashboard() {
+  const courses = [
+    {
+      name: 'Introduction to React',
+      students: 45,
+      status: 'Active',
+    },
+    {
+      name: 'Advanced JavaScript',
+      students: 32,
+      status: 'Active',
+    },
+    {
+      name: 'Web Design Basics',
+      students: 28,
+      status: 'Draft',
+    },
+  ]
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        Trainer Dashboard
+      </h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-blue-500 p-3 rounded-lg">
+              <BookOpenIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Courses Created</h3>
+          <p className="text-3xl font-bold text-gray-800">12</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-green-500 p-3 rounded-lg">
+              <UsersIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Total Students</h3>
+          <p className="text-3xl font-bold text-gray-800">156</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-purple-500 p-3 rounded-lg">
+              <TrendingUpIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Avg. Completion</h3>
+          <p className="text-3xl font-bold text-gray-800">78%</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold text-gray-800">Your Courses</h2>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Create New Course
+          </button>
+        </div>
+        <div className="space-y-4">
+          {courses.map((course, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+            >
+              <div>
+                <h3 className="font-semibold text-gray-800">{course.name}</h3>
+                <p className="text-sm text-gray-600">
+                  {course.students} students enrolled
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span
+                  className={`px-3 py-1 rounded-full text-sm ${course.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}
+                >
+                  {course.status}
+                </span>
+                <button className="text-blue-600 hover:text-blue-700 font-medium">
+                  Edit
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+function StudentDashboard() {
+  const courses = [
+    {
+      name: 'Introduction to React',
+      progress: 75,
+      nextExam: '2 days',
+    },
+    {
+      name: 'Advanced JavaScript',
+      progress: 45,
+      nextExam: '5 days',
+    },
+    {
+      name: 'Web Design Basics',
+      progress: 90,
+      nextExam: 'Completed',
+    },
+  ]
+  return (
+    <div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">
+        Student Dashboard
+      </h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-blue-500 p-3 rounded-lg">
+              <BookOpenIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Enrolled Courses</h3>
+          <p className="text-3xl font-bold text-gray-800">3</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-green-500 p-3 rounded-lg">
+              <TrendingUpIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Avg. Progress</h3>
+          <p className="text-3xl font-bold text-gray-800">70%</p>
+        </div>
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="bg-orange-500 p-3 rounded-lg">
+              <ClockIcon size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className="text-gray-600 text-sm mb-1">Upcoming Exams</h3>
+          <p className="text-3xl font-bold text-gray-800">2</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-800 mb-6">My Courses</h2>
+        <div className="space-y-4">
+          {courses.map((course, index) => (
+            <div key={index} className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-800">{course.name}</h3>
+                <span className="text-sm text-gray-600">
+                  Next exam: {course.nextExam}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{
+                        width: `${course.progress}%`,
+                      }}
+                    ></div>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-gray-700">
+                  {course.progress}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```pages/CourseManagement.tsx
+import React, { useState } from 'react'
+import { UploadIcon, FileTextIcon, VideoIcon, PlusIcon } from 'lucide-react'
+export default function CourseManagement() {
+  const [courses, setCourses] = useState([
+    {
+      id: 1,
+      name: 'Introduction to React',
+      status: 'Active',
+      videos: 12,
+      materials: 8,
+    },
+    {
+      id: 2,
+      name: 'Advanced JavaScript',
+      status: 'Active',
+      videos: 15,
+      materials: 10,
+    },
+    {
+      id: 3,
+      name: 'Web Design Basics',
+      status: 'Draft',
+      videos: 5,
+      materials: 3,
+    },
+  ])
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">Course Management</h1>
+        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+          <PlusIcon size={20} />
+          Create New Course
+        </button>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <button className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left">
+          <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <VideoIcon size={24} className="text-blue-600" />
+          </div>
+          <h3 className="font-semibold text-gray-800 mb-2">Upload Video</h3>
+          <p className="text-sm text-gray-600">
+            Add new video lectures to your courses
+          </p>
+        </button>
+        <button className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left">
+          <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <FileTextIcon size={24} className="text-green-600" />
+          </div>
+          <h3 className="font-semibold text-gray-800 mb-2">Upload Material</h3>
+          <p className="text-sm text-gray-600">Add PDF, PPT, or DOC files</p>
+        </button>
+        <button className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow text-left">
+          <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <UploadIcon size={24} className="text-purple-600" />
+          </div>
+          <h3 className="font-semibold text-gray-800 mb-2">View Submissions</h3>
+          <p className="text-sm text-gray-600">Check student assignments</p>
+        </button>
+      </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800">Your Courses</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Course Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Videos
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Materials
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {courses.map((course) => (
+                <tr key={course.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="font-medium text-gray-800">
+                      {course.name}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm ${course.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'}`}
+                    >
+                      {course.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {course.videos}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {course.materials}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-2">
+                      <button className="text-blue-600 hover:text-blue-700 font-medium">
+                        Edit
+                      </button>
+                      <button className="text-gray-600 hover:text-gray-700 font-medium">
+                        View
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```pages/Assessment.tsx
+import React, { useEffect, useState, useContext, useReducer, memo } from 'react'
+import { ClockIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+export default function Assessment() {
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [answers, setAnswers] = useState<{
+    [key: number]: string
+  }>({})
+  const [showResults, setShowResults] = useState(false)
+  const questions = [
+    {
+      id: 1,
+      question: 'What is the virtual DOM in React?',
+      type: 'mcq',
+      options: [
+        'A copy of the real DOM kept in memory',
+        'A database for storing component state',
+        'A styling framework',
+        'A testing library',
+      ],
+    },
+    {
+      id: 2,
+      question: 'Explain the concept of React Hooks in your own words.',
+      type: 'short',
+    },
+    {
+      id: 3,
+      question: 'Which hook is used for side effects in React?',
+      type: 'mcq',
+      options: ['useState', 'useEffect', 'useContext', 'useReducer'],
+    },
+  ]
+  const handleAnswer = (questionId: number, answer: string) => {
+    setAnswers({
+      ...answers,
+      [questionId]: answer,
+    })
+  }
+  const handleSubmit = () => {
+    setShowResults(true)
+  }
+  if (showResults) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white rounded-lg shadow p-8 text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg
+              className="w-10 h-10 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Assessment Submitted!
+          </h2>
+          <p className="text-gray-600 mb-8">
+            Your answers have been recorded and will be reviewed by your
+            instructor.
+          </p>
+          <div className="bg-gray-50 rounded-lg p-6 mb-6">
+            <h3 className="font-semibold text-gray-800 mb-4">Summary</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-bold text-blue-600">
+                  {questions.length}
+                </p>
+                <p className="text-sm text-gray-600">Total Questions</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">
+                  {Object.keys(answers).length}
+                </p>
+                <p className="text-sm text-gray-600">Answered</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-600">
+                  {questions.length - Object.keys(answers).length}
+                </p>
+                <p className="text-sm text-gray-600">Skipped</p>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => (window.location.href = '/dashboard')}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
+  const question = questions[currentQuestion]
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-800">
+            Introduction to React - Final Assessment
+          </h1>
+          <div className="flex items-center gap-2 bg-red-50 px-4 py-2 rounded-lg">
+            <ClockIcon size={20} className="text-red-600" />
+            <span className="font-semibold text-red-600">45:00</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-lg shadow p-8">
+            <div className="mb-6">
+              <span className="text-sm text-gray-600">
+                Question {currentQuestion + 1} of {questions.length}
+              </span>
+              <h2 className="text-xl font-semibold text-gray-800 mt-2">
+                {question.question}
+              </h2>
+            </div>
+            {question.type === 'mcq' ? (
+              <div className="space-y-3">
+                {question.options?.map((option, index) => (
+                  <label
+                    key={index}
+                    className="flex items-center p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${question.id}`}
+                      value={option}
+                      checked={answers[question.id] === option}
+                      onChange={(e) =>
+                        handleAnswer(question.id, e.target.value)
+                      }
+                      className="mr-3 w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-gray-700">{option}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <textarea
+                value={answers[question.id] || ''}
+                onChange={(e) => handleAnswer(question.id, e.target.value)}
+                className="w-full h-40 p-4 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                placeholder="Type your answer here..."
+              />
+            )}
+            <div className="flex items-center justify-between mt-8">
+              <button
+                onClick={() =>
+                  setCurrentQuestion(Math.max(0, currentQuestion - 1))
+                }
+                disabled={currentQuestion === 0}
+                className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeftIcon size={20} />
+                Previous
+              </button>
+              {currentQuestion === questions.length - 1 ? (
+                <button
+                  onClick={handleSubmit}
+                  className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Submit Assessment
+                </button>
+              ) : (
+                <button
+                  onClick={() =>
+                    setCurrentQuestion(
+                      Math.min(questions.length - 1, currentQuestion + 1),
+                    )
+                  }
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Next
+                  <ChevronRightIcon size={20} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+            <h3 className="font-semibold text-gray-800 mb-4">
+              Question Navigator
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              {questions.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentQuestion(index)}
+                  className={`w-full aspect-square rounded-lg font-medium transition-colors ${currentQuestion === index ? 'bg-blue-600 text-white' : answers[questions[index].id] ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+            <button className="w-full mt-6 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+              Save Progress
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```pages/UserManagement.tsx
+import React, { useState } from 'react'
+import { PlusIcon, SearchIcon, EditIcon, XCircleIcon } from 'lucide-react'
+export default function UserManagement() {
+  const [users, setUsers] = useState([
+    {
+      id: 1,
+      name: 'John Doe',
+      email: 'john@example.com',
+      role: 'Student',
+      status: 'Active',
+      lastLogin: '2024-01-15',
+    },
+    {
+      id: 2,
+      name: 'Jane Smith',
+      email: 'jane@example.com',
+      role: 'Trainer',
+      status: 'Active',
+      lastLogin: '2024-01-14',
+    },
+    {
+      id: 3,
+      name: 'Mike Johnson',
+      email: 'mike@example.com',
+      role: 'Student',
+      status: 'Active',
+      lastLogin: '2024-01-13',
+    },
+    {
+      id: 4,
+      name: 'Sarah Williams',
+      email: 'sarah@example.com',
+      role: 'Trainer',
+      status: 'Inactive',
+      lastLogin: '2024-01-10',
+    },
+  ])
+  const [searchTerm, setSearchTerm] = useState('')
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()),
+  )
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
+        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+          <PlusIcon size={20} />
+          Add User
+        </button>
+      </div>
+      <div className="bg-white rounded-lg shadow mb-6 p-6">
+        <div className="relative">
+          <SearchIcon
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Search users by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+      </div>
+      <div className="bg-white rounded-lg shadow">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Login
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map((user) => (
+                <tr key={user.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <span className="text-blue-600 font-semibold">
+                          {user.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="font-medium text-gray-800">
+                          {user.name}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {user.email}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700">
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm ${user.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                    >
+                      {user.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+                    {user.lastLogin}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex gap-2">
+                      <button
+                        className="text-blue-600 hover:text-blue-700"
+                        title="Edit"
+                      >
+                        <EditIcon size={18} />
+                      </button>
+                      <button
+                        className="text-red-600 hover:text-red-700"
+                        title="Deactivate"
+                      >
+                        <XCircleIcon size={18} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+```
+```pages/Landing.tsx
+import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  BookOpenIcon,
+  UsersIcon,
+  FileTextIcon,
+  TrendingUpIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  PlayCircleIcon,
+  GraduationCapIcon,
+  BarChartIcon,
+  FacebookIcon,
+  TwitterIcon,
+  LinkedinIcon,
+  InstagramIcon,
+} from 'lucide-react'
+export default function Landing() {
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const features = [
+    {
+      icon: UsersIcon,
+      title: 'Create Accounts & Roles',
+      description:
+        'Set up Administrator, Trainer, and Student accounts with role-based access control.',
+    },
+    {
+      icon: PlayCircleIcon,
+      title: 'Upload Videos & Materials',
+      description:
+        'Share video lectures, PDFs, presentations, and other learning resources easily.',
+    },
+    {
+      icon: FileTextIcon,
+      title: 'Online Assessments',
+      description:
+        'Create and grade MCQ and short-answer exams with automated tracking.',
+    },
+    {
+      icon: BarChartIcon,
+      title: 'Progress Tracking',
+      description:
+        'Monitor student progress, completion rates, and performance analytics.',
+    },
+  ]
+  const courses = [
+    {
+      title: 'Introduction to React',
+      trainer: 'Sarah Johnson',
+      tag: 'Web Development',
+      thumbnail:
+        'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop',
+    },
+    {
+      title: 'Advanced JavaScript',
+      trainer: 'Mike Chen',
+      tag: 'Programming',
+      thumbnail:
+        'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=400&h=250&fit=crop',
+    },
+    {
+      title: 'UI/UX Design Fundamentals',
+      trainer: 'Emma Davis',
+      tag: 'Design',
+      thumbnail:
+        'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400&h=250&fit=crop',
+    },
+  ]
+  const steps = [
+    {
+      number: '01',
+      title: 'Sign Up',
+      description:
+        'Create your account and choose your role: Student, Trainer, or Administrator.',
+    },
+    {
+      number: '02',
+      title: 'Create & Upload',
+      description:
+        'Build courses, upload videos and materials, or enroll in existing courses.',
+    },
+    {
+      number: '03',
+      title: 'Assess & Track',
+      description:
+        'Take exams, monitor progress, and achieve your learning goals.',
+    },
+  ]
+  const pricingPlans = [
+    {
+      name: 'Student',
+      price: 'Free',
+      description: 'Perfect for learners',
+      features: [
+        'Access to all courses',
+        'Take assessments',
+        'Progress tracking',
+        'Certificate of completion',
+      ],
+    },
+    {
+      name: 'Trainer',
+      price: '$29',
+      period: '/month',
+      description: 'For educators',
+      features: [
+        'Create unlimited courses',
+        'Upload videos & materials',
+        'Create assessments',
+        'Student analytics',
+        'Priority support',
+      ],
+      highlighted: true,
+    },
+    {
+      name: 'Organization',
+      price: '$99',
+      period: '/month',
+      description: 'For institutions',
+      features: [
+        'Everything in Trainer',
+        'User management',
+        'Custom branding',
+        'Advanced analytics',
+        'Dedicated support',
+        'API access',
+      ],
+    },
+  ]
+  const faqs = [
+    {
+      question: 'How do I create different types of accounts?',
+      answer:
+        'When you sign up, you can choose between Student, Trainer, or Administrator roles. Each role has specific permissions and features tailored to your needs.',
+    },
+    {
+      question: 'What types of content can I upload?',
+      answer:
+        'Trainers can upload videos, PDFs, PowerPoint presentations, Word documents, and other educational materials. All files are securely stored and easily accessible to enrolled students.',
+    },
+    {
+      question: 'How do online exams work?',
+      answer:
+        'Our platform supports both multiple-choice questions (MCQ) and short-answer format exams. Students can take timed assessments, and trainers can review and grade submissions directly in the platform.',
+    },
+    {
+      question: 'Is my data secure and private?',
+      answer:
+        'Yes, we use industry-standard encryption and security measures to protect your data. All user information and course content is stored securely and never shared with third parties.',
+    },
+    {
+      question: 'What kind of support do you offer?',
+      answer:
+        'We provide email support for all users, with priority support for Trainer and Organization plans. Our help center includes detailed documentation, video tutorials, and FAQs.',
+    },
+  ]
+  return (
+    <div className="min-h-screen w-full bg-white">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-8">
+              <Link to="/" className="text-2xl font-bold text-blue-600">
+                LMS
+              </Link>
+              <div className="hidden md:flex gap-6">
+                <a
+                  href="#courses"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  Courses
+                </a>
+                <a
+                  href="#pricing"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  Pricing
+                </a>
+                <a
+                  href="#about"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  About
+                </a>
+                <a
+                  href="#faq"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  FAQ
+                </a>
+                <a
+                  href="#contact"
+                  className="text-gray-700 hover:text-blue-600 font-medium"
+                >
+                  Contact
+                </a>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/login"
+                className="px-4 py-2 text-gray-700 hover:text-blue-600 font-medium"
+              >
+                Login
+              </Link>
+              <Link
+                to="/login"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-blue-50 to-white py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto">
+            <h1 className="text-5xl font-bold text-gray-900 mb-6">
+              Learn. Teach. Assess—All in One LMS.
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              Create accounts, upload videos and learning materials, take MCQ
+              and short-answer exams, and track progress—all in one powerful
+              platform.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                to="/login"
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg"
+              >
+                Get Started
+              </Link>
+              <a
+                href="#courses"
+                className="px-8 py-3 bg-white text-blue-600 border-2 border-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold text-lg"
+              >
+                Browse Courses
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+      {/* Value Props */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Everything You Need to Succeed
+            </h2>
+            <p className="text-lg text-gray-600">
+              Powerful features designed for modern learning
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {features.map((feature, index) => {
+              const Icon = feature.icon
+              return (
+                <div
+                  key={index}
+                  className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
+                >
+                  <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                    <Icon size={24} className="text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600">{feature.description}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+      {/* Featured Courses */}
+      <section id="courses" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Featured Courses
+            </h2>
+            <p className="text-lg text-gray-600">
+              Explore our most popular learning paths
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {courses.map((course, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow"
+              >
+                <img
+                  src={course.thumbnail}
+                  alt={course.title}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="p-6">
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-600 text-sm font-medium rounded-full mb-3">
+                    {course.tag}
+                  </span>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {course.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4">By {course.trainer}</p>
+                  <button className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* How It Works */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              How It Works
+            </h2>
+            <p className="text-lg text-gray-600">
+              Get started in three simple steps
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {steps.map((step, index) => (
+              <div key={index} className="text-center">
+                <div className="bg-blue-600 text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  {step.number}
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {step.title}
+                </h3>
+                <p className="text-gray-600">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* Pricing Preview */}
+      <section id="pricing" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Simple, Transparent Pricing
+            </h2>
+            <p className="text-lg text-gray-600">
+              Choose the plan that fits your needs
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {pricingPlans.map((plan, index) => (
+              <div
+                key={index}
+                className={`bg-white rounded-lg p-8 ${plan.highlighted ? 'border-2 border-blue-600 shadow-xl' : 'border border-gray-200'}`}
+              >
+                {plan.highlighted && (
+                  <span className="inline-block px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-full mb-4">
+                    Most Popular
+                  </span>
+                )}
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {plan.name}
+                </h3>
+                <p className="text-gray-600 mb-4">{plan.description}</p>
+                <div className="mb-6">
+                  <span className="text-4xl font-bold text-gray-900">
+                    {plan.price}
+                  </span>
+                  {plan.period && (
+                    <span className="text-gray-600">{plan.period}</span>
+                  )}
+                </div>
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, fIndex) => (
+                    <li key={fIndex} className="flex items-start gap-2">
+                      <CheckCircleIcon
+                        size={20}
+                        className="text-green-600 flex-shrink-0 mt-0.5"
+                      />
+                      <span className="text-gray-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  className={`w-full py-3 rounded-lg font-semibold transition-colors ${plan.highlighted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                >
+                  Get Started
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* FAQ */}
+      <section id="faq" className="py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg text-gray-600">
+              Everything you need to know about LMS
+            </p>
+          </div>
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div
+                key={index}
+                className="bg-white border border-gray-200 rounded-lg overflow-hidden"
+              >
+                <button
+                  onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                  className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                  aria-expanded={openFaq === index}
+                  aria-controls={`faq-answer-${index}`}
+                >
+                  <span className="font-semibold text-gray-900">
+                    {faq.question}
+                  </span>
+                  <ChevronDownIcon
+                    size={20}
+                    className={`text-gray-600 transition-transform ${openFaq === index ? 'transform rotate-180' : ''}`}
+                  />
+                </button>
+                {openFaq === index && (
+                  <div
+                    id={`faq-answer-${index}`}
+                    className="px-6 pb-4 text-gray-600"
+                  >
+                    {faq.answer}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* Footer */}
+      <footer id="contact" className="bg-gray-900 text-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <h3 className="text-xl font-bold mb-4">LMS</h3>
+              <p className="text-gray-400">
+                Empowering education through technology
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Product</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a href="#courses" className="text-gray-400 hover:text-white">
+                    Courses
+                  </a>
+                </li>
+                <li>
+                  <a href="#pricing" className="text-gray-400 hover:text-white">
+                    Pricing
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white">
+                    Features
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Company</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a href="#about" className="text-gray-400 hover:text-white">
+                    About Us
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white">
+                    Careers
+                  </a>
+                </li>
+                <li>
+                  <a href="#contact" className="text-gray-400 hover:text-white">
+                    Contact
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white">
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white">
+                    Terms of Service
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="text-gray-400 hover:text-white">
+                    Cookie Policy
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-400 text-sm mb-4 md:mb-0">
+              © 2024 LMS. All rights reserved.
+            </p>
+            <div className="flex gap-4">
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white"
+                aria-label="Facebook"
+              >
+                <FacebookIcon size={20} />
+              </a>
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white"
+                aria-label="Twitter"
+              >
+                <TwitterIcon size={20} />
+              </a>
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white"
+                aria-label="LinkedIn"
+              >
+                <LinkedinIcon size={20} />
+              </a>
+              <a
+                href="#"
+                className="text-gray-400 hover:text-white"
+                aria-label="Instagram"
+              >
+                <InstagramIcon size={20} />
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+```
